@@ -27,6 +27,7 @@ TARGET_OTA_ASSERT_DEVICE := E6533,E6553,ivy,ivy_dsds
 
 # Boot image/kernel
 TARGET_KERNEL_CONFIG := kitakami_ivy_defconfig
+BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
 
 # Init
 TARGET_INIT_VENDOR_LIB := libinit_ivy
