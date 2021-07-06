@@ -20,8 +20,10 @@
 #include <android-base/logging.h>
 
 #include <fcntl.h>
+#include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <unistd.h>
 #include <sys/stat.h>
 #define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
@@ -33,6 +35,8 @@
 #include "util.h"
 
 using android::init::ImportKernelCmdline;
+
+constexpr auto LTALABEL_PATH = "/dev/block/platform/soc.0/f9824900.sdhci/by-name/LTALabel";
 
 void property_override(char const prop[], char const value[], bool add = true)
 {
@@ -63,25 +67,31 @@ static void import_kernel_nv(const std::string& key,
 {
     if (key.empty()) return;
 
+    if (std::ifstream file = std::ifstream(LTALABEL_PATH, std::ios::binary)) {
+        std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        size_t offset = str.find("Model: ");
+
+        if (offset != std::string::npos) {
+            std::string model = str.substr(offset + strlen("Model: "), 5);
+            property_override("ro.semc.product.model", model.c_str());
+            property_override_triple("ro.product.model", "ro.product.system.model", "ro.product.vendor.model", model.c_str());
+            property_override_triple("ro.product.name", "ro.product.system.name", "ro.product.vendor.name", model.c_str());
+        }
+    }
+
     if (key == "oemandroidboot.phoneid") {
 	//Dual Sim variant contains two IMEIs separated by comma.
         if ((count(value.begin(), value.end(),',')) > 0) {
                 property_override("persist.multisim.config", "dsds");
                 property_override("persist.radio.multisim.config", "dsds");
                 property_override("ro.telephony.default_network", "9,1");
-                property_override("ro.semc.product.model", "E6533");
                 property_override("ro.semc.product.name", "Xperia Z3+ Dual");
-                property_override_triple("ro.product.model", "ro.product.system.model", "ro.product.vendor.model", "E6533");
-                property_override_dual("ro.product.name", "ro.vendor.product.name", "ivy_dsds");
                 property_override_triple("ro.product.device", "ro.product.system.device", "ro.product.vendor.device", "ivy_dsds");
                 property_override("ro.build.description", "E6533-user 7.1.1 32.4.A.1.54 3761073091 release-keys");
                 property_override_triple("ro.build.fingerprint", "ro.system.build.fingerprint", "ro.vendor.build.fingerprint", "Sony/E6533/E6533:7.1.1/32.4.A.1.54/3761073091:user/release-keys");
         } else {
                 property_override("ro.telephony.default_network", "9");
-                property_override("ro.semc.product.model", "E6553");
                 property_override("ro.semc.product.name", "Xperia Z3+");
-                property_override_triple("ro.product.model", "ro.product.system.model", "ro.product.vendor.model", "E6553");
-                property_override_dual("ro.product.name", "ro.vendor.product.name", "ivy");
                 property_override_triple("ro.product.device", "ro.product.system.device", "ro.product.vendor.device", "ivy");
                 property_override("ro.build.description", "E6553-user 7.1.1 32.4.A.1.54 3761073091 release-keys");
                 property_override_triple("ro.build.fingerprint", "ro.system.build.fingerprint", "ro.vendor.build.fingerprint", "Sony/E6553/E6553:7.1.1/32.4.A.1.54/3761073091:user/release-keys");
